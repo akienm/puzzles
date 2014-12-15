@@ -57,7 +57,7 @@ class Nation:
 	# the before list for a node who's name matches passed_name
 	# Returns true for found, false for not found
 	def is_before(self, passed_nation):
-	    # return passed_name == self.name or item.is_before(passed_name)
+	    
 		if passed_nation.name == self.name:
 			return True
 		if self.before_string.find(passed_nation.name) > -1:
