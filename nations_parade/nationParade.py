@@ -43,10 +43,12 @@ class Nation:
 		self.before_list = []
 		self.before_string = ''
 		self.num_children = 0
+	# end __init__
 	
 	# insert_new_before(position, item)
 	# inserts item into before list 
 	# and updates num_children
+	# No return value
 	def insert_new_before(self, position, item):
 		self.before_list.insert(position, item)
 		self.before_string = self.before_string + "-" + item.name + "-"
@@ -71,7 +73,10 @@ class Nation:
 			return False
 	# end is_before
 	
-	#rebuild_before_string()
+	# rebuild_before_string()
+	# Rebuilds the before_string to have all the children and 
+	# their children's children to make searches easy
+	# No return value
 	def rebuild_before_string(self):
 		s = ''
 		i = 0
@@ -80,8 +85,13 @@ class Nation:
 		i = result[1]
 		self.before_string = s
 		self.num_children = i
+	# end rebuild_before_string
 		
 	# fetch_all_children_names(s)
+	# Helper used by rebuild_before_string
+	# Recursively calls all children to fetch ALL
+	# the names for all the befores
+	# No return value
 	def fetch_all_children_names(self, s, i):
 		if s.find(self.name) == -1:
 			s = s + "-" + self.name + "-"
@@ -92,17 +102,7 @@ class Nation:
 				s = result[0]
 				i = result[1]
 		return [s, i]
-				
-	# normalize()
-	# Sorts the before list by number of children each child in the
-	# before list has
-	# Returns nothing
-	def normalize(self):
-		if self.num_children > 0:
-			self.before_list.sort(cmp=None, key=num_children, reverse=False)
-			for item in self.before_list:
-				item.normalize()
-	# end normalize
+	# end fetch_all_children_names
 
 # end Nation
 
@@ -120,7 +120,7 @@ def search_by_name(country_list, name):
 # add_line(country_list, line)
 # parses line and country_list to determine whether the country_list
 # needs to be added to, or one of it's children needs to be added to
-# Returns nothing
+# No return value
 def add_line(country_list, line):
 	line = line.strip()
 	rresult = regex.split(line)
@@ -161,7 +161,6 @@ def add_line(country_list, line):
 	
 	# and add it to the before list
 	country_a.insert_new_before(0, country_b)
-
 # end add_line
 
 # global variables
@@ -210,12 +209,11 @@ def main():
 		line = input_file.readline()
 
 	# so now all the before lists are populated
-
+	# we can rebuild the before lists to capture 
+	# all the children, and children of children
 	for item in country_list:
 		item.rebuild_before_string()
 	
-	#country_list.sort(cmp=None, key=num_children, reverse=False)
-
 	# so when we get here, the items at the top of the list don't have 
 	# anyone in front of them and the list is sorted so the ones with 
 	# the most before them are at the end
@@ -223,7 +221,8 @@ def main():
 	result_list = []
 	
 	# now we loop through all the countries and start moving them to 
-	# the result list
+	# the result list. we search the result list to determine positioning
+	# and we do the list from the end forward
 	
 	for index_into_country_list in range(0, len(country_list) -1):
 
