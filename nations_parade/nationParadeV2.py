@@ -58,10 +58,31 @@ def validate_arguments():
 	return input_file_name
 # end validate_arguments
 
+# read_input_file(input_file_name, country_dict)
+# reads the input file into the country_dict
+# Returns nothing
+# Modifies country_dict
+def read_input_file(input_file_name, country_dict):
+	try:
+		with open(input_file_name, 'r') as fh: 
+			for line in fh:
+				add_line(country_dict, line.strip())	
+	except: 
+		print "I'm sorry, an error occurred when trying to open your file."
+		print "You may want to verify that it's not open in some other program,"
+		print "and that you have the correct permissions to read the file,"
+		print "and then try again."
+		print "Thanks!"
+		e = sys.exc_info()[0]
+		print "Error when trying to open the file:\n%s" % e 
+		sys.exit(3)
+# end read_input_file
+
 # add_line(country_dict, line)
 # parses line and country_dict to determine whether the country_dict
 # needs to be added to, or one of it's children needs to be added to
-# No return value
+# Returns nothing
+# Modifies country_dict
 def add_line(country_dict, line):
 	line = line.strip()
 	rresult = regex.split(line)
@@ -85,6 +106,7 @@ def add_line(country_dict, line):
 			
 # end add_line
 
+
 # global variables
 regex = re.compile(r"(\w+)\s+comes\s+(before|after)\s+([\w\s]+)")
 	
@@ -100,19 +122,7 @@ def main():
 
 	# if we got this far, we have arguments
 	# so read the file contents into country_dict
-	try:
-		with open(input_file_name, 'r') as fh: 
-			for line in fh:
-				add_line(country_dict, line.strip())	
-	except: 
-		print "I'm sorry, an error occurred when trying to open your file."
-		print "You may want to verify that it's not open in some other program,"
-		print "and that you have the correct permissions to read the file,"
-		print "and then try again."
-		print "Thanks!"
-		e = sys.exc_info()[0]
-		print "Error when trying to open the file:\n%s" % e 
-		sys.exit(3)
+	read_input_file(input_file_name, country_dict)
 
 	timer["read"] = time.time()
 
@@ -138,20 +148,3 @@ def main():
 # end main
 
 main()
-
-
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
