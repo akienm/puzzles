@@ -28,6 +28,7 @@ import os.path
 import sys
 import re
 import networkx as nx
+import time
 
 # add_line(country_dict, line)
 # parses line and country_dict to determine whether the country_dict
@@ -39,17 +40,17 @@ def add_line(country_dict, line):
 	
 	# do we use the new one, or does one already exist?
 	country_a_name = rresult[1]
-	if not country_dict[country_a_name]:
+	if not country_dict.has_key(country_a_name):
 		country_dict[country_a_name] = []
 
 	country_b_name = rresult[3]
-	if not country_dict[country_b_name]:
+	if not country_dict.has_key(country_b_name):
 		country_dict[country_b_name] = []
 	
 	edge = rresult[2]
 	
-	if edge = "before":
-		if not country_b_name in country_a.before_string:
+	if edge == "before":
+		if not country_dict.has_key(country_b_name):
 			country_dict[country_a_name].append(country_b_name)
 		else:
 			country_dict[country_b_name].append(country_a_name)
@@ -60,6 +61,8 @@ def add_line(country_dict, line):
 regex = re.compile(r"(\w+)\s+comes\s+(before|after)\s+([\w\s]+)")
 	
 def main():
+	timer = dict()
+	timer["start"] = time.time()
 	# do we have correct arguments?
 	if len(sys.argv) < 2:
 		print "I'm sorry, you don't seem to have provided the input file name."
@@ -79,39 +82,52 @@ def main():
 		print "Thanks!"
 		sys.exit(2)
 	
-	country_dict = List()
+	country_dict = dict()
+	country_list = []
 
 	# if we got this far, we have arguments
+	timer["launched"] = time.time()
 	try:
-	with open(input_file_name, 'rb') as fh: 
-		for line in fh:
-			add_line(country_dict, line.strip())
-	except: # catch *all* exceptions
+		with open(input_file_name, 'r') as fh: 
+			for line in fh:
+				add_line(country_dict, line.strip())	
+	except: 
 		print "I'm sorry, an error occurred when trying to open your file."
 		print "You may want to verify that it's not open in some other program,"
 		print "and that you have the correct permissions to read the file,"
 		print "and then try again."
 		print "Thanks!"
+		e = sys.exc_info()[0]
+		print "Error when trying to open the file:\n%s" % e 
 		sys.exit(3)
+
+	timer["read"] = time.time()
 
 	# so now all the before dictss are populated
 	# we rebuild the dict as a list 
-	for key, value in country_dict.iteritems():
-    	temp = [key,value]
-     	country_list.append(temp)
 	
+	for key, value in country_dict.iteritems():
+		temp = [key,value]
+		country_list.append(temp)
+
+	timer["filtered"] = time.time()
+
 	# now we have a list of nested tuples 
 	# use that and the magic of networkx to do the heavy lifting
 	result_list = nx.DiGraph()
-		for key, vals in x:
-    		for val in vals:
-        		result_list.add_edge(key, val)
+	for key, vals in country_list:
+		for val in vals:
+			result_list.add_edge(key, val)
 	
+	timer["graphed"] = time.time()
 	# and finally, print it
 	for item in result_list:
 		print item
 	#end for
-	
+
+	timer["printed"] = time.time()
+	print "\n"
+	print "time to process (excluding print) = %f" % (timer["graphed"] - timer["start"])
 	print "Done!"
 # end main
 
