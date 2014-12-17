@@ -29,6 +29,34 @@ import sys
 import re
 import networkx as nx
 import time
+import unittest
+
+
+# validate_arguments()
+# verifies that we have a file specified in the calling arguments
+# Returns the file name as input_file_name
+def validate_arguments():
+	# do we have correct arguments?
+	if len(sys.argv) < 2:
+		print "I'm sorry, you don't seem to have provided the input file name."
+		print "Please add that to the end of the command line and then try again."
+		print "Thanks!"
+		sys.exit(1) 
+
+	input_file_name = sys.argv[1]
+
+	print "Specified input file: %s" % input_file_name
+	if os.path.isfile(input_file_name):
+		print("Input file found.")
+	else:
+		print "I'm sorry, the input file you specified was NOT FOUND."
+		print "Please check to make sure you have the correct file name"
+		print "and then try again."
+		print "Thanks!"
+		sys.exit(2)
+
+	return input_file_name
+# end validate_arguments
 
 # add_line(country_dict, line)
 # parses line and country_dict to determine whether the country_dict
@@ -63,30 +91,15 @@ regex = re.compile(r"(\w+)\s+comes\s+(before|after)\s+([\w\s]+)")
 def main():
 	timer = dict()
 	timer["start"] = time.time()
-	# do we have correct arguments?
-	if len(sys.argv) < 2:
-		print "I'm sorry, you don't seem to have provided the input file name."
-		print "Please add that to the end of the command line and then try again."
-		print "Thanks!"
-		sys.exit(1) 
-
-	input_file_name = sys.argv[1]
-
-	print "Specified input file: %s" % input_file_name
-	if os.path.isfile(input_file_name):
-		print("Input file found.")
-	else:
-		print "I'm sorry, the input file you specified was NOT FOUND."
-		print "Please check to make sure you have the correct file name"
-		print "and then try again."
-		print "Thanks!"
-		sys.exit(2)
 	
+	input_file_name = validate_arguments()
+	
+	timer["launched"] = time.time()
+
 	country_dict = dict()
-	country_list = []
 
 	# if we got this far, we have arguments
-	timer["launched"] = time.time()
+	# so read the file contents into country_dict
 	try:
 		with open(input_file_name, 'r') as fh: 
 			for line in fh:
@@ -104,30 +117,23 @@ def main():
 	timer["read"] = time.time()
 
 	# so now all the before dictss are populated
-	# we rebuild the dict as a list 
-	
-	for key, value in country_dict.iteritems():
-		temp = [key,value]
-		country_list.append(temp)
+	# we rebuild the dict as a graph	
+	result_graph = nx.DiGraph()
+	for key, values in country_dict.iteritems():
+		for value in values:
+			result_graph.add_edge(key, value)
 
-	timer["filtered"] = time.time()
-
-	# now we have a list of nested tuples 
-	# use that and the magic of networkx to do the heavy lifting
-	result_list = nx.DiGraph()
-	for key, vals in country_list:
-		for val in vals:
-			result_list.add_edge(key, val)
-	
 	timer["graphed"] = time.time()
+
 	# and finally, print it
-	for item in result_list:
+	for item in result_graph:
 		print item
 	#end for
 
 	timer["printed"] = time.time()
 	print "\n"
 	print "time to process (excluding print) = %f" % (timer["graphed"] - timer["start"])
+	print "time to print = %f" % (timer["printed"] - timer["graphed"])
 	print "Done!"
 # end main
 
