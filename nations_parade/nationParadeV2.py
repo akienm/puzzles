@@ -106,6 +106,16 @@ def add_line(country_dict, line):
 			
 # end add_line
 
+# build_graph(country_dict)
+# reads the country_dict and generates a DiGraph (from networkx)
+# Returns result_graph
+def build_graph(country_dict):
+	result_graph = nx.DiGraph()
+	for key, values in country_dict.iteritems():
+		for value in values:
+			result_graph.add_edge(key, value)
+	return result_graph
+# end build_graph
 
 # global variables
 regex = re.compile(r"(\w+)\s+comes\s+(before|after)\s+([\w\s]+)")
@@ -128,10 +138,7 @@ def main():
 
 	# so now all the before dictss are populated
 	# we rebuild the dict as a graph	
-	result_graph = nx.DiGraph()
-	for key, values in country_dict.iteritems():
-		for value in values:
-			result_graph.add_edge(key, value)
+	result_graph = build_graph(country_dict)
 
 	timer["graphed"] = time.time()
 
