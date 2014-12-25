@@ -75,31 +75,30 @@ def read_input_file():
     global dependency_graph
     global rules
 
-    count = -1
-
     with open(input_file_name, 'r') as fh:
         for line in fh:
+
+            # take apart the data
             line = line.strip()
-            count += 1
             rules.append(line)
-
             rresult = regex.split(line)
-
             dependency = rresult[2]
-            if dependency == "before":  # country a before country b
-                country_a_name = rresult[1]
-                country_b_name = rresult[3]
-            else:
-                country_a_name = rresult[3]
-                country_b_name = rresult[1]
+            country_a_name = rresult[1]
+            country_b_name = rresult[3]
 
+            # and make entries if they don't already exist
             if country_a_name not in dependency_graph:
                 dependency_graph[country_a_name] = []
 
-            if country_b_name in dependency_graph:
+            if country_b_name not in dependency_graph:
+                dependency_graph[country_b_name] = []
+
+            # now add the earlier one to the
+            # later one's dependency list
+            if dependency == "before":
                 dependency_graph[country_b_name].append(country_a_name)
-            else:
-                dependency_graph[country_b_name] = [country_a_name]
+            else:           # after
+                dependency_graph[country_a_name].append(country_b_name)
 
 # end read_input_file
 
