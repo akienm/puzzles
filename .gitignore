@@ -1,4 +1,6 @@
-.idea/*.*
+*/.idea/*.*
+data.txt
+result.txt
 
 #################
 ## Eclipse
