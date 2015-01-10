@@ -22,51 +22,153 @@ import sys
 import time
 import random
 import cProfile
+from collections import deque
+import threading
 
 
-def tee(file_handle, data, print_too):
-    file_handle.write("{0}\n".format(data))
-    if print_too:
-        print data
-    for stream in (sys.stdout, sys.stderr):
-        stream.flush()
+class EventProcessor(threading.Thread):
+
+    def __init__(self, data_file_name):
+        threading.Thread.__init__(self)
+        self.output_buffer = deque()
+        self.data_file_name = data_file_name
+        self.lock = threading.Lock()
+        self.stream_initialized = False
+        self.stream_complete = False
+        self.start()
+
+    def event_generator(self):
+        while (not self.stream_complete) or self.output_buffer:
+            while not self.output_buffer:
+                pass
+            event = self.output_buffer.popleft()
+            yield event
+
+        yield False
+
+    def run(self):
+
+        class Bag(object):
+            def __init__(self, **kwargs):
+                self.__dict__.update(kwargs)
+
+        class Event(object):
+            def __init__(self, time, city):
+                self.time = time
+                self.city = city
+
+            def __str__(self):
+                return "{0} {1}".format(self.time, self.city)
+
+            def __repr__(self):
+                return "{0} {1}".format(self.time, self.city)
+
+        counters = Bag(
+            most_recent=float(0),
+            least_recent=float(10000000000),
+            most_recent_printed=0,
+            count_of_printed=0,
+            read_count=0,
+            read_cycle_count=0,
+            new_target=None
+        )
+        flags = Bag(
+            spacing=float(300),
+            items_to_read_per_cycle=50000
+        )
+
+        cycling_buffer = dict()
+        output_buffer = self.output_buffer
+
+        data_file_name = self.data_file_name
+        line = None
+        city = None
+        time_of_entry_numeric = None
+
+        def prep_data():  # uses line, counters
+            line.strip()
+            sep = line.find(" ")
+            city = line[sep:].strip()
+            time_of_entry = float(line[0:sep])
+            if time_of_entry > counters.most_recent:
+                counters.most_recent = time_of_entry
+            if time_of_entry < counters.least_recent:
+                counters.least_recent = time_of_entry
+            counters.new_target = counters.most_recent - flags.spacing
+            return time_of_entry, city
+
+        def add_entry():  # uses time_of_entry, city, cycling_buffer
+            if time_of_entry_numeric not in cycling_buffer:
+                cycling_buffer[time_of_entry_numeric] = []
+            current_event = Event(time_of_entry_numeric, city)
+            current_event.line = line
+            cycling_buffer[time_of_entry_numeric].append(current_event)
+
+        def process_one():  # uses event_key, cycling_buffer, counters
+            event_list = cycling_buffer[event_key]
+            for event in event_list:
+                counters.count_of_printed += 1
+                output_buffer.append(event)
+                if event.time < counters.most_recent_printed:
+                    raise Exception("sort failed")
+                counters.most_recent_printed = event.time
+                counters.least_recent = event.time
+            del cycling_buffer[event_key]
+
+        with open(data_file_name, 'r') as input_file:
+
+            for line in input_file:
+                counters.read_count += 1
+                counters.read_cycle_count += 1
+
+                time_of_entry_numeric, city = prep_data()  # uses line, counters
+
+                add_entry()  # uses time_of_entry, city, cycling_buffer
+
+                if (counters.least_recent <= counters.new_target) and \
+                        (counters.read_cycle_count > flags.items_to_read_per_cycle):
+                    counters.read_cycle_count = 0
+                    keys_to_test = list(cycling_buffer.keys())
+                    keys_to_test.sort(None, None, False)
+                    for event_key in keys_to_test:
+                        if cycling_buffer[event_key][0].time < counters.new_target:
+                            process_one()  # uses event_key, cycling_buffer, counters)
+                        else:
+                            break
+                    self.stream_initialized = True
+
+        if cycling_buffer:
+            keys_to_test = list(cycling_buffer.keys())
+            keys_to_test.sort()
+            for event_key in keys_to_test:
+                process_one()  # event_key, cycling_buffer, counters)
+
+        self.stream_initialized = True
+        self.stream_complete = True
+
+_event_processors = dict()
 
 
-# end tee
+def event_stream(data_file_name):
+    global _event_processors
+    if data_file_name not in _event_processors:
+        _event_processors[data_file_name] = EventProcessor(data_file_name)
+    generator = _event_processors[data_file_name].event_generator()
+    return generator
 
 
-def create_sample_file(write_file_name):
-    """ creates sample data file """
-    JITTER = 275
-    TICKS = 1000
-    LINES_PER_TICK = 1000
-
-    def log_line(now):
-        timestamp = now - (random.random() * JITTER)
-        timestamp = "{:f}".format(timestamp)
-        timestamp = timestamp[4:]
-        return "%s   City %d" % (timestamp, random.randint(0, 10000))
-
-    start = time.time()
-
-    with open(write_file_name, 'w') as fh:
-        for tick in xrange(TICKS):
-            now = start + tick
-            for num_line in xrange(LINES_PER_TICK):
-                fh.write(log_line(now) + "\n")
-
-# end create_sample_file
+output_handle = None
 
 
-class Event:
-    def __init__(self, time, city):
-        self.time = time
-        self.city = city
-
-
-class Bag:
-    def __init__(self):
-        pass
+def update_model(event):
+    global output_handle
+    if not output_handle:
+        output_handle = open("result.txt", 'w')
+    if event:
+        # output_handle.write(event.__str__())
+        output_handle.write(event.line)
+    else:
+        output_handle.close()
 
 
 def main():
@@ -84,86 +186,24 @@ def main():
     # data_file_name = "data.txt"
     # create_sample_file(data_file_name)
 
-    cycling_buffer = dict()
-
-    counters = Bag()
-    counters.most_recent = float(0)
-    counters.least_recent = float(10000000000)
-    counters.most_recent_printed = 0
-    counters.count_of_printed = 0
-    counters.read_count = 0
-    counters.read_cycle_count = 0
-    counters.new_target = None
-
-    flags = Bag()
-    flags.spacing = float(300)
-    flags.items_to_read_per_cycle = 50000
-    flags.stop_at = -1
-    flags.debug_halt = False
-
-    def prep_data(line, counters):
-        line.strip()
-        city = line[line.find(" "):].strip()
-        time_of_entry = line[0:line.find(" ")]
-        time_of_entry_numeric = float(time_of_entry)
-        if time_of_entry_numeric > counters.most_recent:
-            counters.most_recent = time_of_entry_numeric
-        if time_of_entry_numeric < counters.least_recent:
-            counters.least_recent = time_of_entry_numeric
-        counters.new_target = counters.most_recent - flags.spacing
-        return time_of_entry_numeric, city
-
-    def add_entry(time_of_entry_numeric, city, cycling_buffer):
-        if time_of_entry_numeric not in cycling_buffer:
-            cycling_buffer[time_of_entry_numeric] = []
-        current_event = Event(time_of_entry_numeric, city)
-        cycling_buffer[time_of_entry_numeric].append(current_event)
-
-    def process_one(event_key, cycling_buffer, counters):
-        event_list = cycling_buffer[event_key]
-        for event in event_list:
-            counters.count_of_printed += 1
-            tee(output_file, "{0} {1}".format(event.time, event.city), False)
-            if event.time < counters.most_recent_printed:
-                raise Exception("sort failed")
-            counters.most_recent_printed = event.time
-            counters.least_recent = event.time
-        del cycling_buffer[event_key]
-
-    with open("result.txt", 'w') as output_file:
-        with open(data_file_name, 'r') as input_file:
-
-            for line in input_file:
-                counters.read_count += 1
-                counters.read_cycle_count += 1
-                if (counters.read_count > flags.stop_at) and (flags.stop_at != -1):
-                    flags.debug_halt = True
-                if flags.debug_halt:
-                    break
-
-                time_of_entry_numeric, city = prep_data(line, counters)
-
-                add_entry(time_of_entry_numeric, city, cycling_buffer)
-
-                if counters.least_recent <= counters.new_target and \
-                                counters.read_cycle_count > flags.items_to_read_per_cycle:
-                    counters.read_cycle_count = 0
-                    keys_to_test = list(cycling_buffer.keys())
-                    keys_to_test.sort(None, None, False)
-                    for event_key in keys_to_test:
-                        if cycling_buffer[event_key][0].time < counters.new_target:
-                            process_one(event_key, cycling_buffer, counters)
-                        else:
-                            break
-
-        keys_to_test = list(cycling_buffer.keys())
-        keys_to_test.sort()
-        for event_key in keys_to_test:
-            process_one(event_key, cycling_buffer, counters)
+    generator = event_stream(data_file_name)
+    for event in generator:
+        update_model(event)
+        # print event
+    #keep_going = True
+    #while keep_going:
+    #    event = event_stream(data_file_name)
+    #    if event:
+    #        # print event
+    #        pass
+    #    else:
+    #        keep_going = False
 
     end = time.time()
     print end - start
 # end main
 
-main()
-# cProfile.run('main()')
+
+# main()
+cProfile.run('main()', None, "tottime")
+
