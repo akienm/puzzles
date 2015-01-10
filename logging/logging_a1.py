@@ -24,13 +24,14 @@ import random
 import cProfile
 from collections import deque
 import threading
-
+import pstats
 
 class EventProcessor(threading.Thread):
 
     def __init__(self, data_file_name):
         threading.Thread.__init__(self)
         self.output_buffer = deque()
+        #self.output_buffer = list()
         self.data_file_name = data_file_name
         self.lock = threading.Lock()
         self.stream_initialized = False
@@ -40,8 +41,10 @@ class EventProcessor(threading.Thread):
     def event_generator(self):
         while (not self.stream_complete) or self.output_buffer:
             while not self.output_buffer:
-                pass
+                time.sleep(0.05)
             event = self.output_buffer.popleft()
+            # event = self.output_buffer[0]
+            # self.output_buffer.remove(event)
             yield event
 
         yield False
@@ -128,6 +131,7 @@ class EventProcessor(threading.Thread):
                 if (counters.least_recent <= counters.new_target) and \
                         (counters.read_cycle_count > flags.items_to_read_per_cycle):
                     counters.read_cycle_count = 0
+                    self.lock.acquire(True)
                     keys_to_test = list(cycling_buffer.keys())
                     keys_to_test.sort(None, None, False)
                     for event_key in keys_to_test:
@@ -136,15 +140,19 @@ class EventProcessor(threading.Thread):
                         else:
                             break
                     self.stream_initialized = True
+                    self.lock.release()
 
         if cycling_buffer:
+            self.lock.acquire(True)
             keys_to_test = list(cycling_buffer.keys())
             keys_to_test.sort()
             for event_key in keys_to_test:
                 process_one()  # event_key, cycling_buffer, counters)
+            self.lock.release()
 
         self.stream_initialized = True
         self.stream_complete = True
+# end EventProcessor
 
 _event_processors = dict()
 
@@ -155,7 +163,7 @@ def event_stream(data_file_name):
         _event_processors[data_file_name] = EventProcessor(data_file_name)
     generator = _event_processors[data_file_name].event_generator()
     return generator
-
+# end event_stream
 
 output_handle = None
 
@@ -190,14 +198,6 @@ def main():
     for event in generator:
         update_model(event)
         # print event
-    #keep_going = True
-    #while keep_going:
-    #    event = event_stream(data_file_name)
-    #    if event:
-    #        # print event
-    #        pass
-    #    else:
-    #        keep_going = False
 
     end = time.time()
     print end - start
@@ -205,5 +205,11 @@ def main():
 
 
 # main()
-cProfile.run('main()', None, "tottime")
+cProfile.run('main()', "profiler.raw", "tottime")
+output_handle.close()
+output_handle = open("profiler.log", 'a')
+p = pstats.Stats('profiler.raw', stream=output_handle)
+p.strip_dirs().sort_stats("tottime").print_stats()
+output_handle.close()
+
 
