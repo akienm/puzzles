@@ -185,6 +185,7 @@ def update_model(event):
         output_handle.write(event.line)
     else:
         output_handle.close()
+        output_handle = None
 
 
 def create_sample_file(write_file_name):
@@ -238,7 +239,7 @@ _thread_enable = True
 _profile_and_debug = True
 
 
-def other():
+def profile_it():
     cProfile.run('main()', "profiler.raw", "tottime")
     output_handle = open("profiler.log", 'a')
     p = pstats.Stats('profiler.raw', stream=output_handle)
@@ -246,7 +247,7 @@ def other():
     output_handle.close()
 
 if _profile_and_debug:
-    other()
+    profile_it()
 else:
     main()
 
