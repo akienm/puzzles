@@ -228,7 +228,7 @@ def main():
     # generator = event_stream(data_file_name)
     for event in event_stream(data_file_name):
         update_model(event)
-        # print event
+        print event
 
     end = time.time()
     print end - start
