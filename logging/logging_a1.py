@@ -26,6 +26,7 @@ from collections import deque
 import threading
 import pstats
 
+
 class EventProcessor(threading.Thread):
 
     def __init__(self, data_file_name):
@@ -131,7 +132,7 @@ class EventProcessor(threading.Thread):
                         (counters.read_cycle_count > flags.items_to_read_per_cycle):
                     while self.output_buffer:
                         time.sleep(0.05)
-                    self.lock.acquire(True)
+                    # self.lock.acquire(True)
                     counters.read_cycle_count = 0
                     keys_to_test = list(cycling_buffer.keys())
                     keys_to_test.sort(None, None, False)
@@ -141,18 +142,18 @@ class EventProcessor(threading.Thread):
                         else:
                             break
                     self.stream_initialized = True
-                    self.lock.release()
+                    # self.lock.release()
 
 
         if cycling_buffer:
             while self.output_buffer:
                 time.sleep(0.05)
-            self.lock.acquire(True)
+            # self.lock.acquire(True)
             keys_to_test = list(cycling_buffer.keys())
             keys_to_test.sort()
             for event_key in keys_to_test:
                 process_one()  # event_key, cycling_buffer, counters)
-            self.lock.release()
+            # self.lock.release()
 
         self.stream_initialized = True
         self.stream_complete = True
