@@ -330,7 +330,7 @@ def main():
 
 # these flags control threading and profiling
 _thread_enable = True
-_profile_and_debug = True
+_profile_and_debug = False
 
 
 def profile_it():
