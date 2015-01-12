@@ -23,11 +23,10 @@ import time
 import random
 import cProfile
 from collections import deque
-import threading
 import pstats
 
 
-class EventProcessor(threading.Thread):
+class EventProcessor(object):
 
     """ EventProcessor
         Reads file and sorts output by time. Sorts within a 300 second window
@@ -38,18 +37,77 @@ class EventProcessor(threading.Thread):
         sort across multiple input streams.
     """
 
+    class Bag(object):
+        """ Bag is a generic container
+            it's instantiated with name/value pairs
+        """
+        def __init__(self, **kwargs):
+            """ Pushes values into object's data space dictionary
+                :param kwargs: name=value pairs to put into object
+                :return: Nothing
+            """
+            self.__dict__.update(kwargs)
+
+    class Event(object):
+        """ container for event data.
+            includes input data (line), time and city
+        """
+        def __init__(self, line, time, city):
+            """ Pushes data into new object
+                :param line: raw input used to make this record
+                :param time: time as float extracted from line
+                :param city: city as extracted from line
+                :return: Nothing
+            """
+            self.line = line
+            self.time = time
+            self.city = city
+
+        def __str__(self):
+            """ :return: string representation of the data """
+            return self.line
+
+        def __repr__(self):
+            """ :return: string representation of the data """
+            return self.line
+
     def __init__(self, data_file_name):
         """
         :param data_file_name: file name this instance will operate and be known by
         :return: Nothing
         """
-        threading.Thread.__init__(self)
-        self.output_buffer = deque()            # FIFO queue, stores sorted values to be pushed
+
         self.data_file_name = data_file_name    # stores file name to read
-        self.stream_initialized = False         # tells generator we don't have data yet
         self.stream_complete = False            # tells generator all records are in output
-        if _thread_enable:                      # _thread_enable allows multithreaded operation
-            self.start()                        # (multithreaded is the default for this version)
+
+        # counters contains all the counters. Only real use is to make
+        # it visually more clear that the data in question is a counter
+        self.counters = self.Bag(
+            most_recent=float(0),               # time stamp for the most recent item in the cycling buffer
+            least_recent=float(10000000000),    # time stamp for the oldest item in the cycling buffer
+            most_recent_output=0,               # time stamp for the most recent one output. Used for validation
+            read_cycle_count=0,                 # used to help determine when to sort
+            new_target=None                     # process records up to this time stamp
+        )
+
+        # flags contains all the runtime control flags. These values are
+        # all constants. Only real use is to make it visually more clear
+        # that the data in question is a flag
+        self.flags = self.Bag(
+            spacing=float(300),                 # target spacing between most_recent and least_recent
+            items_to_read_per_cycle=50000       # read this many before trying a sort
+        )
+
+        # cycling_buffer contains the events spanning the
+        # spacing specified in the flags.
+        self.cycling_buffer = dict()
+
+        # these variable initializations are here so that they will
+        # share the scope of the parent function, making them available
+        # to the sub-functions defined below
+        self.line = None
+        self.city = None
+        self.time_of_entry = None
 
     def event_generator(self):
         """ This spits out events - events are removed from the BEGINNING
@@ -57,17 +115,65 @@ class EventProcessor(threading.Thread):
             output_buffer)
             :return: Yields an event
         """
-        while (not self.stream_complete) or self.output_buffer:
-            while not self.output_buffer:
-                time.sleep(0.05)
-            event = self.output_buffer.popleft()
-            yield event
+        event_source = self.process()
+        while not self.stream_complete:
+            for block in event_source:
+                for event_to_yield in block:
+                    yield event_to_yield
 
     def run(self):
         """ This is the multithreaded entry point
         :return: Nothing
         """
         self.process()
+
+    def prep_data(self):
+        """  Reads amd preps the data, updates relevant counters
+        :return: Nothing
+        """
+        sep = self.line.find(" ")
+        self.city = self.line[sep+1:-1]
+        self.time_of_entry = float(self.line[0:sep-1])
+        self.current_event = self.Event(self.line[0:-1], self.time_of_entry, self.city)
+
+        # most_recent is the chronologically most recent item in the cycling_buffer
+        self.counters.most_recent = max(self.time_of_entry, self.counters.most_recent)
+        # least_recent is the chronologically least recent item in the cycling_buffer
+        self.counters.least_recent = min(self.time_of_entry, self.counters.least_recent)
+        # new_target specifies the point records should be processed to
+        self.counters.new_target = self.counters.most_recent - self.flags.spacing
+
+    def add_entry(self):
+        """ Creates event object and adds it to the appropriate time-
+            identified entry in the cycling_buffer. This sub-list
+            allows multiple entries with the same time stamp
+            :return: Nothing
+        """
+        # if an entry for this time stamp isn't in the cycling_buffer,
+        # then add one for it
+        if self.time_of_entry not in self.cycling_buffer:
+            self.cycling_buffer[self.time_of_entry] = []
+        # now push the new event into the cycling_buffer
+        self.cycling_buffer[self.time_of_entry].append(self.current_event)
+
+    def process_one(self, output_buffer):
+        """ Processes one entry in the cycling_buffer,
+            puts result(s) into the FIFO output_buffer, then deletes
+            it from the cycling buffer. This ADDS to the END
+            of the output_buffer. (event_generator removes events
+            from the BEGINNING of the buffer)
+            :return: Nothing
+        """
+        event_list = self.cycling_buffer[self.event_key]
+        for event in event_list:
+            output_buffer.append(event)
+            # lets do some inline validation just to be sure
+            if event.time < self.counters.most_recent_output:
+                raise Exception("sort failed event.time {0} < counters.most_recent_output {1}".format(
+                    event.time, self.counters.most_recent_output))
+            self.counters.most_recent_output = event.time
+            self.counters.least_recent = event.time
+        del self.cycling_buffer[self.event_key]
 
     def process(self):
         """  This is the code that reads and sorts the incoming data,
@@ -78,164 +184,46 @@ class EventProcessor(threading.Thread):
              :return: Nothing
         """
 
-        class Bag(object):
-            """ Bag is a generic container
-                it's instantiated with name/value pairs
-            """
-            def __init__(self, **kwargs):
-                """ Pushes values into object's data space dictionary
-                    :param kwargs: name=value pairs to put into object
-                    :return: Nothing
-                """
-                self.__dict__.update(kwargs)
-
-        class Event(object):
-            """ container for event data.
-                includes input data (line), time and city
-            """
-            def __init__(self, line, time, city):
-                """ Pushes data into new object
-                    :param line: raw input used to make this record
-                    :param time: time as float extracted from line
-                    :param city: city as extracted from line
-                    :return: Nothing
-                """
-                self.line = line
-                self.time = time
-                self.city = city
-
-            def __str__(self):
-                """ :return: string representation of the data """
-                return self.line
-
-            def __repr__(self):
-                """ :return: string representation of the data """
-                return self.line
-
-        # counters contains all the counters. Only real use is to make
-        # it visually more clear that the data in question is a counter
-        counters = Bag(
-            most_recent=float(0),               # time stamp for the most recent item in the cycling buffer
-            least_recent=float(10000000000),    # time stamp for the oldest item in the cycling buffer
-            most_recent_output=0,               # time stamp for the most recent one output. Used for validation
-            read_cycle_count=0,                 # used to help determine when to sort
-            new_target=None                     # process records up to this time stamp
-        )
-        # flags contains all the runtime control flags. These values are
-        # all constants. Only real use is to make it visually more clear
-        # that the data in question is a flag
-        flags = Bag(
-            spacing=float(300),                 # target spacing between most_recent and least_recent
-            items_to_read_per_cycle=50000       # read this many before trying a sort
-        )
-
-        # cycling_buffer contains the events spanning the
-        # spacing specified in the flags.
-        cycling_buffer = dict()
-
-        # these variable initializations are here so that they will
-        # share the scope of the parent function, making them available
-        # to the sub-functions defined below
-        line = None
-        city = None
-        time_of_entry = None
-
-        # these subfunctions are used by the main loop to process
-        # the data. it's assumed they're accessing data from the
-        # outer function's context
-        def prep_data():  # uses line, counters
-            """  Reads amd preps the data, updates relevant counters
-            :return: time_of_entry, city
-            """
-            sep = line.find(" ")
-            city = line[sep+1:-1]
-            time_of_entry = float(line[0:sep-1])
-            # most_recent is the chronologically most recent item in the cycling_buffer
-            counters.most_recent = max(time_of_entry, counters.most_recent)
-            # least_recent is the chronologically least recent item in the cycling_buffer
-            counters.least_recent = min(time_of_entry, counters.least_recent)
-            # new_target specifies the point records should be processed to
-            counters.new_target = counters.most_recent - flags.spacing
-            return time_of_entry, city
-
-        def add_entry():  # uses line, time_of_entry, city, cycling_buffer
-            """ Creates event object and adds it to the appropriate time-
-                identified entry in the cycling_buffer. This sub-list
-                allows multiple entries with the same time stamp
-                :return: Nothing
-            """
-            # if an entry for this time stamp isn't in the cycling_buffer,
-            # then add one for it
-            if time_of_entry not in cycling_buffer:
-                cycling_buffer[time_of_entry] = []
-            # now create the new event and add the new event to this time stamp's list
-            current_event = Event(line[0:-1], time_of_entry, city)
-            cycling_buffer[time_of_entry].append(current_event)
-
-        def process_one():  # uses event_key, cycling_buffer, counters
-            """ Processes one entry in the cycling_buffer,
-                puts result(s) into the FIFO output_buffer, then deletes
-                it from the cycling buffer. This ADDS to the END
-                of the output_buffer. (event_generator removes events
-                from the BEGINNING of the buffer)
-                :return: Nothing
-            """
-            event_list = cycling_buffer[event_key]
-            for event in event_list:
-                self.output_buffer.append(event)
-                # lets do some inline validation just to be sure
-                if event.time < counters.most_recent_output:
-                    raise Exception("sort failed event.time {0} < counters.most_recent_output {1}".format(
-                        event.time, counters.most_recent_output))
-                counters.most_recent_output = event.time
-                counters.least_recent = event.time
-            del cycling_buffer[event_key]
-
         # this is the main loop for this function
         with open(self.data_file_name, 'r') as input_file:
 
-            for line in input_file:
-                counters.read_cycle_count += 1
+            for self.line in input_file:
+                self.counters.read_cycle_count += 1
 
-                time_of_entry, city = prep_data()  # uses line, counters
-                add_entry()  # uses time_of_entry, city, cycling_buffer
+                self.prep_data()  # uses line, counters
+                self.add_entry()  # uses time_of_entry, city, cycling_buffer
 
-                if (counters.least_recent <= counters.new_target) and \
-                        (counters.read_cycle_count > flags.items_to_read_per_cycle):
+                if (self.counters.least_recent <= self.counters.new_target) and \
+                        (self.counters.read_cycle_count > self.flags.items_to_read_per_cycle):
 
                     # if there are already items in the output buffer, wait
                     # until they've all been consumed.
-                    while self.output_buffer:
-                        time.sleep(0.05)
 
-                    counters.read_cycle_count = 0  # resets this counter since we're processing the list
-
-                    keys_to_test = list(cycling_buffer.keys())
-                    keys_to_test.sort(None, None, False)
-                    for event_key in keys_to_test:
-                        if cycling_buffer[event_key][0].time < counters.new_target:
-                            process_one()  # uses event_key, cycling_buffer, counters)
+                    self.counters.read_cycle_count = 0  # resets this counter since we're processing the list
+                    self.keys_to_test = list(self.cycling_buffer.keys())
+                    self.keys_to_test.sort(None, None, False)
+                    output_buffer = deque()
+                    for self.event_key in self.keys_to_test:
+                        if self.cycling_buffer[self.event_key][0].time < self.counters.new_target:
+                            self.process_one(output_buffer)  # uses event_key, cycling_buffer, counters)
                         else:
                             break
 
                     # now we let the generator know that data in the output_stream is valid
-                    self.stream_initialized = True
+                    yield output_buffer
 
         # we've completed reading the file.
         # are there records in the cycling buffer that still need processing?
-        if cycling_buffer:
+        if self.cycling_buffer:
 
-            # if there are already items in the output buffer, wait
-            # until they've all been consumed.
-            while self.output_buffer:
-                time.sleep(0.05)
+            self.keys_to_test = list(self.cycling_buffer.keys())
+            self.keys_to_test.sort()
+            output_buffer = deque()
+            for self.event_key in self.keys_to_test:
+                self.process_one(output_buffer)  # event_key, cycling_buffer, counters)
 
-            keys_to_test = list(cycling_buffer.keys())
-            keys_to_test.sort()
-            for event_key in keys_to_test:
-                process_one()  # event_key, cycling_buffer, counters)
+            yield output_buffer
 
-        self.stream_initialized = True
         self.stream_complete = True
 # end EventProcessor
 
@@ -252,8 +240,6 @@ def event_stream(data_file_name):
     global _event_processors
     if data_file_name not in _event_processors:
         _event_processors[data_file_name] = EventProcessor(data_file_name)
-        if not _thread_enable:
-            _event_processors[data_file_name].process()
     generator = _event_processors[data_file_name].event_generator()
     return generator
 # end event_stream
@@ -271,7 +257,6 @@ def update_model(event):
     if not output_handle:
         output_handle = open("result.txt", 'w')
     if event:
-        # output_handle.write(event.__str__())
         output_handle.write(event.line)
     else:
         output_handle.close()
@@ -328,9 +313,8 @@ def main():
     print end - start
 # end main
 
-# these flags control threading and profiling
-_thread_enable = True
-_profile_and_debug = False
+# these flags control profiling
+_profile_and_debug = True
 
 
 def profile_it():
@@ -340,8 +324,9 @@ def profile_it():
     cProfile.run('main()', "profiler.raw", "tottime")
     output_handle = open("profiler.log", 'a')
     p = pstats.Stats('profiler.raw', stream=output_handle)
-    p.strip_dirs().sort_stats("tottime").print_stats(12)
+    p.strip_dirs().sort_stats("tottime").print_stats(18)
     output_handle.close()
+
 
 if _profile_and_debug:
     profile_it()
