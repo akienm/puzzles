@@ -121,12 +121,6 @@ class EventProcessor(object):
                 for event_to_yield in block:
                     yield event_to_yield
 
-    def run(self):
-        """ This is the multithreaded entry point
-        :return: Nothing
-        """
-        self.process()
-
     def prep_data(self):
         """  Reads amd preps the data, updates relevant counters
         :return: Nothing
@@ -138,8 +132,10 @@ class EventProcessor(object):
 
         # most_recent is the chronologically most recent item in the cycling_buffer
         self.counters.most_recent = max(self.time_of_entry, self.counters.most_recent)
+
         # least_recent is the chronologically least recent item in the cycling_buffer
         self.counters.least_recent = min(self.time_of_entry, self.counters.least_recent)
+
         # new_target specifies the point records should be processed to
         self.counters.new_target = self.counters.most_recent - self.flags.spacing
 
@@ -153,15 +149,13 @@ class EventProcessor(object):
         # then add one for it
         if self.time_of_entry not in self.cycling_buffer:
             self.cycling_buffer[self.time_of_entry] = []
-        # now push the new event into the cycling_buffer
+        # now push the new event into that entry in the cycling_buffer
         self.cycling_buffer[self.time_of_entry].append(self.current_event)
 
     def process_one(self, output_buffer):
         """ Processes one entry in the cycling_buffer,
             puts result(s) into the FIFO output_buffer, then deletes
-            it from the cycling buffer. This ADDS to the END
-            of the output_buffer. (event_generator removes events
-            from the BEGINNING of the buffer)
+            it from the cycling buffer.
             :return: Nothing
         """
         event_list = self.cycling_buffer[self.event_key]
@@ -183,8 +177,6 @@ class EventProcessor(object):
              it's own thread.
              :return: Nothing
         """
-
-        # this is the main loop for this function
         with open(self.data_file_name, 'r') as input_file:
 
             for self.line in input_file:
