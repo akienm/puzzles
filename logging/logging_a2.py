@@ -306,7 +306,7 @@ def main():
 # end main
 
 # these flags control profiling
-_profile_and_debug = True
+_profile_and_debug = False
 
 
 def profile_it():
