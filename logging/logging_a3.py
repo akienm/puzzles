@@ -172,7 +172,9 @@ def main():
         print event.city
 
     end = time.time()
-    print end - start
+    output_handle = open("profiler.log", 'a')
+    output_handle.write("{0}\n".format(end - start))
+    output_handle.close()
 # end main
 
 # these flags control profiling
