@@ -45,14 +45,16 @@ def main():
     # flags contains all the runtime control flags. These values are
     # all constants. Only real use is to make it visually more clear
     # that the data in question is a flag
-    spacing = float(300)                        # target spacing between most_recent_index and least_recent_index
+    spacing = float(300)                        # target spacing between most_recent_entry and least_recent_entry
     items_to_read_per_cycle = 100000            # read this many before trying a sort
 
     # counters contains all the counters. Only real use is to make
     # it visually more clear that the data in question is a counter
-    most_recent_index = float(0)                # time stamp for the most recent item in the cycling buffer
-    least_recent_index = float(10000000000)     # time stamp for the oldest item in the cycling buffer
+    most_recent_entry = "0.0"                   # time stamp for the most recent item in the cycling buffer
+    least_recent_entry = "99999999999.0"        # time stamp for the oldest item in the cycling buffer
     last_item_emitted = 0                       # time stamp for the most recent one output. Used for validation
+    least_recent_index = 0
+    most_recent_index = 0
 
     cycling_buffer = []
     last_round = False
@@ -73,34 +75,39 @@ def main():
                 break
 
             line = line.rstrip()
-            time_of_entry = float(line.split(None, 1)[0])
-            current_event = [time_of_entry, line]
 
-            # most_recent_index is the chronologically most recent item in the cycling_buffer
-            if time_of_entry > most_recent_index:
-                most_recent_index = time_of_entry
 
-            # least_recent_index is the chronologically least recent item in the cycling_buffer
-            if time_of_entry < least_recent_index:
-                least_recent_index = time_of_entry
+            # most_recent_entry is the chronologically most recent item in the cycling_buffer
+            if line > most_recent_entry:
+                most_recent_entry = line
 
-            cycling_buffer.append(current_event)
+            # least_recent_entry is the chronologically least recent item in the cycling_buffer
+            if line < least_recent_entry:
+                least_recent_entry = line
 
+            cycling_buffer.append(line)
+
+
+        least_recent_index = float(least_recent_entry.split(None, 1)[0])
+        most_recent_index = float(most_recent_entry.split(None, 1)[0])
         if (buffer_width_in_seconds() > spacing) or last_round:
+            hard_stop_index = most_recent_index - spacing
+            hard_stop_string = "{0}".format(hard_stop_index)
 
-            hard_stop = most_recent_index - spacing
             cycling_buffer.sort(None, None, False)
             new_cycling_buffer = []
 
-            for raw_event in cycling_buffer:
-                if raw_event[0] < hard_stop:
-                    if raw_event[0] < last_item_emitted:
-                        raise Exception("sort failed: current={:f} previous={:f}".format(raw_event[0], last_item_emitted))
-                    last_item_emitted = raw_event[0]
-                    print raw_event[1]
+            for line in cycling_buffer:
+                if line < hard_stop_string:
+                    if line < last_item_emitted:
+                        raise Exception("sort failed: current={:f} previous={:f}".format(line, last_item_emitted))
+                    last_item_emitted = line
+                    print line
                 else:
-                    new_cycling_buffer.append(raw_event)
+                    new_cycling_buffer.append(line)
             cycling_buffer = new_cycling_buffer
+            most_recent_entry = "0.0"                # time stamp for the most recent item in the cycling buffer
+            least_recent_entry = "99999999999.0"     # time stamp for the oldest item in the cycling buffer
 
     end = time.time()
 
