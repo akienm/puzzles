@@ -125,16 +125,18 @@ class EventProcessor(object):
         """  Reads amd preps the data, updates relevant counters
         :return: Nothing
         """
-        sep = self.line.find(" ")
-        self.city = self.line[sep+1:-1]
-        self.time_of_entry = float(self.line[0:sep-1])
-        self.current_event = self.Event(self.line[0:-1], self.time_of_entry, self.city)
+        self.line = self.line[0:-1]
+        self.time_of_entry, self.city = self.line.split(None, 1)
+        self.time_of_entry = float(self.time_of_entry)
+        self.current_event = self.Event(self.line, self.time_of_entry, self.city)
 
         # most_recent is the chronologically most recent item in the cycling_buffer
-        self.counters.most_recent = max(self.time_of_entry, self.counters.most_recent)
+        if self.time_of_entry > self.counters.most_recent:
+            self.counters.most_recent = self.time_of_entry
 
         # least_recent is the chronologically least recent item in the cycling_buffer
-        self.counters.least_recent = min(self.time_of_entry, self.counters.least_recent)
+        if self.time_of_entry < self.counters.least_recent:
+            self.counters.least_recent = self.time_of_entry
 
         # new_target specifies the point records should be processed to
         self.counters.new_target = self.counters.most_recent - self.flags.spacing
@@ -238,6 +240,7 @@ def event_stream(data_file_name):
 
 
 output_handle = None  # used by update_model to push output to a file for debugging
+validation_tracker = 0
 
 
 def update_model(event):
@@ -246,10 +249,16 @@ def update_model(event):
     :return: Nothing
     """
     global output_handle
+    global validation_tracker
     if not output_handle:
-        output_handle = open("result.txt", 'w')
+        output_handle = open("result.csv", 'w')
     if event:
-        output_handle.write(event.line)
+        output_handle.write("%s \n" % event.line)
+        if event.time < validation_tracker:
+            raise Exception("sort failed event.time {0} < counters.most_recent_output {1}".format(
+                    event.time, validation_tracker))
+        else:
+            validation_tracker = event.time
     else:
         output_handle.close()
         output_handle = None
@@ -263,17 +272,15 @@ def create_sample_file(write_file_name):
 
     def log_line(now):
         timestamp = now - (random.random() * JITTER)
-        timestamp = "{:f}".format(timestamp)
-        timestamp = timestamp[4:]
-        return "%s   City %d" % (timestamp, random.randint(0, 10000))
+        return "%f   City %d\n" % (timestamp, random.randint(0, 10000))
 
     start = time.time()
 
-    with open(write_file_name, 'w') as fh:
+    with open(write_file_name, 'w') as write_file:
         for tick in xrange(TICKS):
             now = start + tick
             for num_line in xrange(LINES_PER_TICK):
-                fh.write(log_line(now) + "\n")
+               write_file.write(log_line(now))
 
 # end create_sample_file
 
@@ -306,7 +313,7 @@ def main():
 # end main
 
 # these flags control profiling
-_profile_and_debug = False
+_profile_and_debug = True
 
 
 def profile_it():

@@ -86,7 +86,7 @@ def event_stream(data_file_name):
     # that the data in question is a flag
     flags = Bag(
         spacing=float(300),                 # target spacing between most_recent_index and least_recent_index
-        items_to_read_per_cycle=50000       # read this many before trying a sort
+        items_to_read_per_cycle=100000       # read this many before trying a sort
     )
 
     cycling_buffer = []
