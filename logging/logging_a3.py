@@ -144,7 +144,29 @@ def update_model(event):
     pass
 
 
+def create_sample_file(write_file_name):
+    """ creates sample data file """
+    JITTER = 275
+    TICKS = 1000
+    LINES_PER_TICK = 1000
+
+    def log_line(now):
+        timestamp = now - (random.random() * JITTER)
+        return "%f   City %d\n" % (timestamp, random.randint(0, 10000))
+
+    start = time.time()
+
+    with open(write_file_name, 'w') as write_file:
+        for tick in xrange(TICKS):
+            now = start + tick
+            for num_line in xrange(LINES_PER_TICK):
+               write_file.write(log_line(now))
+
+# end create_sample_file
+
+
 input_file_handle = None
+
 
 def main():
     """ Checks for valid input file and launches processing
@@ -152,25 +174,24 @@ def main():
     """
     global input_file_handle
 
-    start = time.time()
+    data_file_name = "data.txt"
     if len(sys.argv) < 2 or (len(sys.argv) > 1 and (not os.path.isfile(sys.argv[1]))):
         # if we got here, we have to create the input file
-        data_file_name = "data.txt"
-        if not os.path.isfile(data_file_name):
-            create_sample_file(data_file_name)
         input_file_handle = sys.stdin
     else:
         # we use passed file
         # so we need to extract it from the args
         data_file_name = sys.argv[1]
+        if not os.path.isfile(data_file_name):
+            create_sample_file(data_file_name)
         input_file_handle = open(data_file_name, 'r')
 
-    # generator = event_stream(data_file_name)
+    start = time.time()
     for event in event_stream(data_file_name):
-        update_model(event)
+        # update_model(event)
         print event
-
     end = time.time()
+
     output_handle = open("profiler.log", 'a')
     output_handle.write("{0}\n".format(end - start))
     output_handle.close()
