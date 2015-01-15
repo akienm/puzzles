@@ -38,7 +38,7 @@ class Event(object):
     """ container for event data.
         includes input data (line), time and city
     """
-    def __init__(self, time, city):
+    def __init__(self, time, city, line):
         """ Pushes data into new object
             :param line: raw input used to make this record
             :param time: time as float extracted from line
@@ -47,17 +47,15 @@ class Event(object):
         """
         self.time = time
         self.city = city
+        self.line = line
 
     def __str__(self):
         """ :return: string representation of the data """
-        return self.line()
+        return self.line
 
     def __repr__(self):
         """ :return: string representation of the data """
-        return self.line()
-
-    def line(self):
-        return "%f %s" % (self.time, self.city)
+        return self.line
 
 
 def event_stream(data_file_name):
@@ -78,7 +76,7 @@ def event_stream(data_file_name):
         most_recent_index=float(0),               # time stamp for the most recent item in the cycling buffer
         least_recent_index=float(10000000000),    # time stamp for the oldest item in the cycling buffer
         most_recent_index_output=0,               # time stamp for the most recent one output. Used for validation
-        read_cycle_count=0
+        last_item_emitted=0                       # check results
     )
 
     # flags contains all the runtime control flags. These values are
@@ -108,30 +106,30 @@ def event_stream(data_file_name):
             line = line.rstrip()
             time_of_entry, city = line.split(None, 1)
             time_of_entry = float(time_of_entry)
-            current_event = [time_of_entry, line, city]
+            current_event = [time_of_entry, city, line]
 
             # most_recent_index is the chronologically most recent item in the cycling_buffer
             if time_of_entry > counters.most_recent_index:
                 counters.most_recent_index = time_of_entry
-                counters.most_recent_event = current_event
 
             # least_recent_index is the chronologically least recent item in the cycling_buffer
             if time_of_entry < counters.least_recent_index:
                 counters.least_recent_index = time_of_entry
-                counters.least_recent_event = current_event
 
             cycling_buffer.append(current_event)
 
         if (buffer_width_in_seconds() > flags.spacing) or last_round:
 
-            cycling_buffer.sort(None, None, True)
+            cycling_buffer.sort(None, None, False)
             hard_stop = counters.most_recent_index - flags.spacing
             new_cycling_buffer = []
 
             for raw_event in cycling_buffer:
                 if raw_event[0] < hard_stop:
-                    city = raw_event[1].split(" ",2)
-                    yield Event(raw_event[0], city[2])
+                    if raw_event[0] < counters.last_item_emitted:
+                        raise Exception("sort failed: current={:f} previous={:f}".format(raw_event[0], counters.last_item_emitted))
+                    counters.last_item_emitted = raw_event[0]
+                    yield Event(raw_event[0], raw_event[1], raw_event[2])
                 else:
                     new_cycling_buffer.append(raw_event)
             cycling_buffer = new_cycling_buffer
