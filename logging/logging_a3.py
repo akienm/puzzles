@@ -57,7 +57,7 @@ class Event(object):
         return self.line()
 
     def line(self):
-        return "%f %s\n" % (self.time, self.city)
+        return "%f %s" % (self.time, self.city)
 
 
 def event_stream(data_file_name):
@@ -130,7 +130,8 @@ def event_stream(data_file_name):
 
             for raw_event in cycling_buffer:
                 if raw_event[0] < hard_stop:
-                    yield Event(raw_event[0], raw_event[1])
+                    city = raw_event[1].split(" ",2)
+                    yield Event(raw_event[0], city[2])
                 else:
                     new_cycling_buffer.append(raw_event)
             cycling_buffer = new_cycling_buffer
@@ -169,7 +170,7 @@ def main():
     # generator = event_stream(data_file_name)
     for event in event_stream(data_file_name):
         update_model(event)
-        print event.city
+        print event
 
     end = time.time()
     output_handle = open("profiler.log", 'a')
