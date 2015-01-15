@@ -52,8 +52,7 @@ def main():
     # it visually more clear that the data in question is a counter
     most_recent_index = float(0)                # time stamp for the most recent item in the cycling buffer
     least_recent_index = float(10000000000)     # time stamp for the oldest item in the cycling buffer
-    most_recent_index_output = 0                # time stamp for the most recent one output. Used for validation
-    last_item_emitted = 0                       # check results
+    last_item_emitted = 0                       # time stamp for the most recent one output. Used for validation
 
     cycling_buffer = []
     last_round = False
@@ -74,8 +73,7 @@ def main():
                 break
 
             line = line.rstrip()
-            time_of_entry = line.split(None, 1)
-            time_of_entry = float(time_of_entry[0])
+            time_of_entry = float(line.split(None, 1)[0])
             current_event = [time_of_entry, line]
 
             # most_recent_index is the chronologically most recent item in the cycling_buffer
@@ -90,8 +88,8 @@ def main():
 
         if (buffer_width_in_seconds() > spacing) or last_round:
 
-            cycling_buffer.sort(None, None, False)
             hard_stop = most_recent_index - spacing
+            cycling_buffer.sort(None, None, False)
             new_cycling_buffer = []
 
             for raw_event in cycling_buffer:
