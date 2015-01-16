@@ -39,9 +39,6 @@ def main():
             raise Exception("file not found: %s" % data_file_name)
         input_file_handle = open(data_file_name, 'r')
 
-    def buffer_width_in_seconds():
-        return most_recent_index - least_recent_index
-
     # flags contains all the runtime control flags. These values are
     # all constants. Only real use is to make it visually more clear
     # that the data in question is a flag
@@ -52,9 +49,12 @@ def main():
     # it visually more clear that the data in question is a counter
     most_recent_entry = "0.0"                   # time stamp for the most recent item in the cycling buffer
     least_recent_entry = "99999999999.0"        # time stamp for the oldest item in the cycling buffer
-    last_item_emitted = 0                       # time stamp for the most recent one output. Used for validation
+    last_item_emitted = "0.0"                   # time stamp for the most recent one output. Used for validation
     least_recent_index = 0
     most_recent_index = 0
+
+    def buffer_width_in_seconds():
+        return most_recent_index - least_recent_index
 
     cycling_buffer = []
     last_round = False
@@ -76,7 +76,6 @@ def main():
 
             line = line.rstrip()
 
-
             # most_recent_entry is the chronologically most recent item in the cycling_buffer
             if line > most_recent_entry:
                 most_recent_entry = line
@@ -86,7 +85,7 @@ def main():
                 least_recent_entry = line
 
             cycling_buffer.append(line)
-
+        # end for
 
         least_recent_index = float(least_recent_entry.split(None, 1)[0])
         most_recent_index = float(most_recent_entry.split(None, 1)[0])
@@ -108,12 +107,13 @@ def main():
             cycling_buffer = new_cycling_buffer
             most_recent_entry = "0.0"                # time stamp for the most recent item in the cycling buffer
             least_recent_entry = "99999999999.0"     # time stamp for the oldest item in the cycling buffer
+        # end if
+
+    # end while
 
     end = time.time()
 
-    output_handle = open("profiler.log", 'a')
-    output_handle.write("{0}\n".format(end - start))
-    output_handle.close()
+    return end - start
 # end main
 
 # these flags control profiling
@@ -126,5 +126,8 @@ if _profile:
     p.strip_dirs().sort_stats("tottime").print_stats(18)
     output_handle.close()
 else:
-    main()
+    result_in_seconds = main()
+    output_handle = open("profiler.log", 'a')
+    output_handle.write("{0}\n".format(result_in_seconds))
+    output_handle.close()
 
