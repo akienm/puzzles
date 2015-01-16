@@ -43,7 +43,7 @@ def main():
     # all constants. Only real use is to make it visually more clear
     # that the data in question is a flag
     spacing = float(300)                        # target spacing between most_recent_entry and least_recent_entry
-    items_to_read_per_cycle = 100000            # read this many before trying a sort
+    items_to_read_per_cycle = 1000000            # read this many before trying a sort
 
     # counters contains all the counters. Only real use is to make
     # it visually more clear that the data in question is a counter
@@ -66,15 +66,14 @@ def main():
         for read_loop_counter in xrange(0, items_to_read_per_cycle):
             try:
                 line = input_file_handle.readline()
+                if not line:
+                    last_round = True
+                    spacing = 0
+                    break
             except:
                 last_round = True
+                spacing = 0
                 break
-
-            if not line:
-                last_round = True
-                break
-
-            line = line.rstrip()
 
             # most_recent_entry is the chronologically most recent item in the cycling_buffer
             if line > most_recent_entry:
@@ -89,11 +88,13 @@ def main():
 
         least_recent_index = float(least_recent_entry.split(None, 1)[0])
         most_recent_index = float(most_recent_entry.split(None, 1)[0])
-        if (buffer_width_in_seconds() > spacing) or last_round:
-            hard_stop_index = most_recent_index - spacing
-            hard_stop_string = "{0}".format(hard_stop_index)
 
-            cycling_buffer.sort(None, None, False)
+        if last_round or (buffer_width_in_seconds() > spacing):
+
+            hard_stop_index = most_recent_index - spacing + 0.1
+            hard_stop_string = "{:f}".format(hard_stop_index)
+
+            cycling_buffer.sort()  # None, None, False)
             new_cycling_buffer = []
 
             for line in cycling_buffer:
@@ -101,11 +102,12 @@ def main():
                     if line < last_item_emitted:
                         raise Exception("sort failed: current={:f} previous={:f}".format(line, last_item_emitted))
                     last_item_emitted = line
-                    print line
+                    print line.rstrip()
                 else:
                     new_cycling_buffer.append(line)
+
+            # now get ready for the next round
             cycling_buffer = new_cycling_buffer
-            most_recent_entry = "0.0"                # time stamp for the most recent item in the cycling buffer
             least_recent_entry = "99999999999.0"     # time stamp for the oldest item in the cycling buffer
         # end if
 
