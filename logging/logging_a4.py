@@ -102,7 +102,7 @@ def main():
                     if line < last_item_emitted:
                         raise Exception("sort failed: current={:f} previous={:f}".format(line, last_item_emitted))
                     last_item_emitted = line
-                    print line.rstrip()
+                    print line[:-1]
                 else:
                     new_cycling_buffer.append(line)
 
