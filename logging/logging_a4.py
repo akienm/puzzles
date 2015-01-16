@@ -43,7 +43,7 @@ def main():
     # all constants. Only real use is to make it visually more clear
     # that the data in question is a flag
     spacing = float(300)                        # target spacing between most_recent_entry and least_recent_entry
-    items_to_read_per_cycle = 1000000            # read this many before trying a sort
+    items_to_read_per_cycle = 100000            # read this many before trying a sort
 
     # counters contains all the counters. Only real use is to make
     # it visually more clear that the data in question is a counter
