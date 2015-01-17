@@ -2,18 +2,12 @@
 
 # Puzzle #2: logging
 # Akien MacIain 12/26/2014
-# algorithm 4
+# algorithm 5
 
-# As a [role] I want [feature] so that [benefit]
-# Given [initial context], when [event occurs], then [ensure some outcomes]
+# logging_a4 is the fastest, but doesn't conform to the puzzle's required interfaces.
+# The main reason this one is slower is because yield is significantly slower than
+# print.
 
-# in order to predict location
-# I as a log consumer
-# require logs in order
-
-# in order to provide logs in order
-# I as a programmer
-# require the incoming stream buffer to be limited in size
 
 
 import os.path
@@ -23,12 +17,14 @@ import cProfile
 import pstats
 
 
-time_overall = 0.0
+time_overall = 0.0          # user to monitor program execution time
 
 
 def event_stream(data_file_name):
-    """ Checks for valid input file and launches processing
-    :return: Nothing
+    """ Sorts events into order.
+    data_file_name = file name to use. If not specified (or None) use stdin
+    yield: an event string until the end of the input stream
+    modifies global: time_overall
     """
     global time_overall
 
@@ -47,17 +43,17 @@ def event_stream(data_file_name):
     spacing = float(300)                        # target spacing between most_recent_entry and least_recent_entry
     items_to_read_per_cycle = 100000            # read this many before trying a sort
 
-    most_recent_entry = "0.0"                   # time stamp for the most recent item in the cycling buffer
     least_recent_entry = "99999999999.0"        # time stamp for the oldest item in the cycling buffer
+    least_recent_index = 0                      # index into cycling_buffer of the least_recent_entry
+    most_recent_entry = "0.0"                   # time stamp for the most recent item in the cycling buffer
+    most_recent_index = 0                       # index into cycling_buffer of the most_recent_entry
     last_item_emitted = "0.0"                   # time stamp for the most recent one output. Used for validation
-    least_recent_index = 0
-    most_recent_index = 0
 
     def buffer_width_in_seconds():
         return most_recent_index - least_recent_index
 
-    cycling_buffer = []
-    last_round = False
+    last_round = False                          # the outer loop tests this flag. Keep going till false
+    cycling_buffer = []                         # where the events are stored for sorting
 
     # basic idea: Read in items_to_read_per_cycle lines. As we read them in, note the most_recent_entry and
     # least_recent_entry. That tells us how wide the cycling_buffer is. If it's below the value of spacing (300)
@@ -112,20 +108,20 @@ def event_stream(data_file_name):
             hard_stop_string = "{:f}".format(hard_stop_index)
 
             cycling_buffer.sort()  # None, None, False)
-            new_cycling_buffer = []
+            new_cycling_buffer = []                 # this one will replace the old one
 
             for line in cycling_buffer:
                 if line < hard_stop_string:
-                    if line < last_item_emitted:
+                    if line < last_item_emitted:    # output validation. could remove and save 2/10ths second per million
                         raise Exception("sort failed: current={:f} previous={:f}".format(line, last_item_emitted))
                     last_item_emitted = line
-                    yield line[:-1]
+                    yield line[:-1]                 # this line is sorted and old enough to emit
                 else:
-                    new_cycling_buffer.append(line)
+                    new_cycling_buffer.append(line) # this entry isn't old enough, push to the new list to go again
 
             # now get ready for the next round
-            cycling_buffer = new_cycling_buffer
-            least_recent_entry = "99999999999.0"     # time stamp for the oldest item in the cycling buffer
+            cycling_buffer = new_cycling_buffer     # cuz letting the old one go out of scope was so much faster
+            least_recent_entry = "99999999999.0"    # time stamp for the oldest item in the cycling buffer
         # end if
 
     # end while
@@ -137,16 +133,23 @@ def event_stream(data_file_name):
 
 
 def update_model(event):
+    """
+    provides the correct interface for the puzzle, does nothing
+    :param event: required but not used
+    :return: Nothing
+    """
     pass
 
 
 def main():
-    for event in event_stream(None):  # None uses command line or stdin
+    """ main event processing loop (extrnal interface per the puzzle)
+    :return: Nothing
+    """
+    for event in event_stream(None):    # None uses command line or stdin
         update_model(event)
         print(event)
 
-# these flags control profiling
-_profile = False
+_profile = False                        # this flag control profiling
 
 if _profile:
     cProfile.run('main()', "profiler.raw", "tottime")
