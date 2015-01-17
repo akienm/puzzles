@@ -25,6 +25,7 @@ import pstats
 
 time_overall = 0.0
 
+
 def event_stream(data_file_name):
     """ Checks for valid input file and launches processing
     :return: Nothing
@@ -43,14 +44,9 @@ def event_stream(data_file_name):
             raise Exception("file not found: %s" % data_file_name)
         input_file_handle = open(data_file_name, 'r')
 
-    # flags contains all the runtime control flags. These values are
-    # all constants. Only real use is to make it visually more clear
-    # that the data in question is a flag
     spacing = float(300)                        # target spacing between most_recent_entry and least_recent_entry
     items_to_read_per_cycle = 100000            # read this many before trying a sort
 
-    # counters contains all the counters. Only real use is to make
-    # it visually more clear that the data in question is a counter
     most_recent_entry = "0.0"                   # time stamp for the most recent item in the cycling buffer
     least_recent_entry = "99999999999.0"        # time stamp for the oldest item in the cycling buffer
     last_item_emitted = "0.0"                   # time stamp for the most recent one output. Used for validation
@@ -63,9 +59,26 @@ def event_stream(data_file_name):
     cycling_buffer = []
     last_round = False
 
+    # basic idea: Read in items_to_read_per_cycle lines. As we read them in, note the most_recent_entry and
+    # least_recent_entry. That tells us how wide the cycling_buffer is. If it's below the value of spacing (300)
+    # we just loop back and read some more.
+    #
+    # But if we do have records "older" than most_recent_entry - spacing, then we emit them to caller.
+    # once we've cycled though those "old" records, we start adding the remaining records to a new list.
+    # That list then becomes the new cycling_list.
+    #
+    # This all takes advantage of the fact that these 4 items are really inexpensive (time wise) in Python:
+    #
+    # list.append()
+    # letting a list fall out of scope (i.e. letting it just get garbage collected)
+    # sorting a list (either with some_list.sort() or sorted(some_list))
+    # creating an empty list
+    #
+    # It's very much a brute force approach.
+
     start = time.time()
 
-    while not last_round:
+    while not last_round:       # until we run out of records
 
         for read_loop_counter in xrange(0, items_to_read_per_cycle):
             try:
