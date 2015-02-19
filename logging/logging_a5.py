@@ -110,14 +110,18 @@ def event_stream(data_file_name):
             cycling_buffer.sort()  # None, None, False)
             new_cycling_buffer = []                 # this one will replace the old one
 
-            for line in cycling_buffer:
+            for buffer_index in xrange(0,  len(cycling_buffer)):
+                line = cycling_buffer[buffer_index]
                 if line < hard_stop_string:
-                    if line < last_item_emitted:    # output validation. could remove and save 2/10ths second per million
+                    if line < last_item_emitted:
                         raise Exception("sort failed: current={:f} previous={:f}".format(line, last_item_emitted))
                     last_item_emitted = line
-                    yield line[:-1]                 # this line is sorted and old enough to emit
+                    yield line[:-1]
                 else:
-                    new_cycling_buffer.append(line) # this entry isn't old enough, push to the new list to go again
+                    for new_buffer_index in xrange(buffer_index, len(cycling_buffer)):
+                        new_cycling_buffer.append(cycling_buffer[new_buffer_index])
+                    break
+
 
             # now get ready for the next round
             cycling_buffer = new_cycling_buffer     # cuz letting the old one go out of scope was so much faster
