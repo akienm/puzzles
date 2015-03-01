@@ -1,8 +1,9 @@
 #!/usr/bin/python
 
-# Puzzle #2: logging
+# Puzzle #2: logging http://125.22.76.78/Swiftstack/wp/logging/
 # Akien MacIain 12/26/2014
 # algorithm 5
+
 
 # logging_a4 is the fastest, but doesn't conform to the puzzle's required interfaces.
 # The main reason this one is slower is because yield is significantly slower than

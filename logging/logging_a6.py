@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Puzzle #2: logging
+# Puzzle #2: logging http://125.22.76.78/Swiftstack/wp/logging/
 # Akien MacIain 12/26/2014
 # algorithm 4
 
