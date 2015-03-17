@@ -2,7 +2,7 @@
 
 # Puzzle #2: logging http://125.22.76.78/Swiftstack/wp/logging/
 # Akien MacIain 12/26/2014
-# algorithm 4
+# algorithm 6
 
 # As a [role] I want [feature] so that [benefit]
 # Given [initial context], when [event occurs], then [ensure some outcomes]

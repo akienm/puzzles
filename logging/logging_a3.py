@@ -2,7 +2,7 @@
 
 # Puzzle #2: logging
 # Akien MacIain 12/26/2014
-# algorithm 1 - Parametrised Periodic Sort
+# algorithm 3 - Parametrised Periodic Sort
 # Note: algorithm 0 - "Sort each time 300 is exceeded" was far too slow
 
 # As a [role] I want [feature] so that [benefit]
