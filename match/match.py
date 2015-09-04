@@ -13,16 +13,19 @@ import time
 import cProfile
 import pstats
 
+# second fastest
 def TC01_setmatch(s1, s2):
     result = list(set(s1) & set(s2))
     result.sort()
     return result
 
+# third fastest 
 def TC02_intersect(l1, l2):
     result = list(set(l1).intersection(set(l2)))
     result.sort()
     return result
 
+# this one is the fastest
 def TC03_simplesearch(l1, l2):
     l3 = list()
     for c in l1:
@@ -31,6 +34,7 @@ def TC03_simplesearch(l1, l2):
     l3.sort()
     return l3
 
+# fourth fastest	
 def TC04_stringmatch(l1,l2):
     l1.sort()
     l2.sort()
@@ -44,6 +48,7 @@ def TC04_stringmatch(l1,l2):
 
 loop_tests = 0
 
+# fifth fastest (slowest)
 def TC05_sortedlistmatch(l1, l2):
     global loop_tests
     l1.sort()
