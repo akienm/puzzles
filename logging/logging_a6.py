@@ -4,16 +4,8 @@
 # Akien MacIain 12/26/2014
 # algorithm 6
 
-# As a [role] I want [feature] so that [benefit]
-# Given [initial context], when [event occurs], then [ensure some outcomes]
-
-# in order to predict location
-# I as a log consumer
-# require logs in order
-
-# in order to provide logs in order
-# I as a programmer
-# require the incoming stream buffer to be limited in size
+# this is the fastest version of this code, but does not conform to the
+# interfaces required by the puzzle. (Generators aren't fast.)
 
 
 import os.path

@@ -4,10 +4,8 @@
 # Akien MacIain 12/26/2014
 # algorithm 5
 
-
-# logging_a4 is the fastest, but doesn't conform to the puzzle's required interfaces.
-# The main reason this one is slower is because yield is significantly slower than
-# print.
+# this version is the fastest I came up with that conforms to the
+# interfaces required by the puzzle.
 
 
 
