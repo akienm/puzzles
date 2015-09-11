@@ -119,11 +119,11 @@ def build_graph():
                 if edge in dependency_graph:
                     # still has edges, loop it around again
                     break
-            else:
-                # this one is ready for the result_graph
-                no_loop_found_this_iteration = True
-                del dependency_graph[node]
-                result_graph.append(node)
+                else:
+                    # this one is ready for the result_graph
+                    no_loop_found_this_iteration = True
+                    del dependency_graph[node]
+                    result_graph.append(node)
 
         if not no_loop_found_this_iteration:
             raise Exception("FAILED: A loop in the dependencies was found ({0} items)".format(len(dependency_graph)))
