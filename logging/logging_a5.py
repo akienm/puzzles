@@ -75,7 +75,7 @@ def event_stream(data_file_name):
 
     while not last_round:       # until we run out of records
 
-        for read_loop_counter in xrange(0, items_to_read_per_cycle):
+        for read_loop_counter in range(0, items_to_read_per_cycle):
             try:
                 line = input_file_handle.readline()
                 if not line:
@@ -109,15 +109,18 @@ def event_stream(data_file_name):
             cycling_buffer.sort()  # None, None, False)
             new_cycling_buffer = []                 # this one will replace the old one
 
-            for buffer_index in xrange(0,  len(cycling_buffer)):
+            for buffer_index in range(0,  len(cycling_buffer)):
                 line = cycling_buffer[buffer_index]
                 if line < hard_stop_string:
                     if line < last_item_emitted:
                         raise Exception("sort failed: current={:f} previous={:f}".format(line, last_item_emitted))
                     last_item_emitted = line
+
+                    # and pass data back to caller
                     yield line[:-1]
+
                 else:
-                    for new_buffer_index in xrange(buffer_index, len(cycling_buffer)):
+                    for new_buffer_index in range(buffer_index, len(cycling_buffer)):
                         new_cycling_buffer.append(cycling_buffer[new_buffer_index])
                     break
 
